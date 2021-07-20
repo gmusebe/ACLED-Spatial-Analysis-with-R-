@@ -20,8 +20,8 @@ library(ggplot2)
 # Let us download the data
 
 Crime_in_Zimababwe <- acled.api(
-  email.address = "africa.sis@castorvali.com",
-  access.key = "*dQCLqPYi1UOBlJHgvJp",
+  email.address = "xxxx",
+  access.key = "xxxx",
   country = "Zimbabwe",
   start.date = "2005-01-01",
   end.date = "2021-07-01",
@@ -286,31 +286,11 @@ library(leaflet.providers)
 library(leaflet.opacity)
 library(cartography)
 library(RColorBrewer)
-
-# ________________
-
-# Admin boundaries:
-# ShapeFile installed
-# Level 0 [Country]
-zim <- st_read("/home/imusebe/code/R/Spatial Data Analysis and Visualisation/ShapeFiles/Zimbabwe ShapeFiles/Admin0/zwe_admbnda_adm0_zimstat_ocha_20180911.shp", 
-               stringsAsFactors = FALSE)
-# Add Level 1 Boundaries:
-level_1 <- st_read("/home/imusebe/code/R/Spatial Data Analysis and Visualisation/ShapeFiles/Zimbabwe ShapeFiles/Admin1/zwe_admbnda_adm1_zimstat_ocha_20180911.shp",
-                   stringsAsFactors = FALSE)
-# Add Level 2 Boundaries:
-level_2 <- st_read("/home/imusebe/code/R/Spatial Data Analysis and Visualisation/ShapeFiles/Zimbabwe ShapeFiles/Admin2/zwe_admbnda_adm2_zimstat_ocha_20180911.shp",
-                   stringsAsFactors = FALSE)
-# Add Level 3 Boundaries:
-level_3 <- st_read("/home/imusebe/code/R/Spatial Data Analysis and Visualisation/ShapeFiles/Zimbabwe ShapeFiles/Admin3/zwe_admbnda_adm3_zimstat_ocha_20180911.shp",
-                   stringsAsFactors = FALSE)
 library(tmap)
 library(tmaptools)
 
-# _____________________________________________________
-
 # ShapeFile installed
 # Admin boundaries:
-
 zim <- st_read("zwe_admbnda_adm0_zimstat_ocha_20180911.shp",stringsAsFactors = FALSE) # country boundaries
 level_1 <- st_read("zwe_admbnda_adm1_zimstat_ocha_20180911.shp", stringsAsFactors = FALSE) # provincial boundaries
 level_2 <- st_read("zwe_admbnda_adm2_zimstat_ocha_20180911.shp",stringsAsFactors = FALSE) # district boundaries
