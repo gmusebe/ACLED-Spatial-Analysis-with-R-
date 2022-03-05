@@ -1,25 +1,46 @@
 # ACLED Analysis
 
-# Download packages:
-install.packages(c('acled.api', 'dplyr', 'tibble', 'janitor', 'plotly', 'ggplot2'))
+# __________________ Installations
 
-# load packages
-# ACLED data import:
+# Download packages:
+install.packages(c('acled.api','dplyr', 'tibble', 'janitor', 'plotly', 'ggplot2'))
+
+# Download spatial packages:
+install.packages(c("sf", "leaflet", "leaflet.providers", "leaflet.opacity", "cartography"))
+
+# ____________ Setting Environment
+# ACLED API library:
 library(acled.api)
 
-# Packages for data feature engineering:
+# Packages for data manipulation feature engineering:
 library(dplyr)
 library(tibble)
 library(janitor)
 
-# Visualisations:
+# Visualizations:
 library(plotly)
 library(ggplot2)
 
-# Acled Data import: Crime Data from 2017 in Zimbabwe
-# Let us download the data
+# spatial libraries
+library(sf)
+library(tmap)
+library(leaflet)
+library(tmaptools)
+library(cartography)
+library(leaflet.opacity)
+library(leaflet.providers)
 
-Crime_in_Zimababwe <- acled.api(
+# color palettes
+library(RColorBrewer)
+
+# set plot_ly environment
+Sys.setenv("plotly_username" = "Musebe")
+Sys.setenv("plotly_api_key" = "dT4LFWecTqPGAf600675")
+
+# ___________________________ Data
+
+# ACLED data import: Crime Data from 2017 in Zimbabwe
+Crime_in_Zimbabwe <- acled.api(
   email.address = "xxxx",
   access.key = "xxxx",
   country = "Zimbabwe",
@@ -28,25 +49,30 @@ Crime_in_Zimababwe <- acled.api(
   add.variables = c("latitude","longitude", "geo_precision", "time_precision")
 )
 
-# Cleaning and Feature Engineerings:
-# Change the timestamp:
-# Unix timestamp automatically generated from the api recording each time an event is uploaded in the api
-# number of seconds passed when since 1970-01-01. What the latest events are.
+# save the data:
+write.csv(Crime_in_Zimbabwe, "2005-01-01-2021-07-01-Zimbabwe.csv")
 
-Crime_in_Zimababwe <- Crime_in_Zimababwe %>% 
+# _____ Cleaning & Feature Engineering
+
+# Change the timestamp:
+# Unix timestamp automatically generated from the api recording.
+# Seconds passed since 1970-01-01.
+
+Crime_in_Zimbabwe <- Crime_in_Zimbabwe %>% 
   add_column(
     # time
-    time = format(as.POSIXct(Crime_in_Zimababwe$timestamp, origin="1970-01-01"), format = "%H:%M:%S"),
+    time = format(as.POSIXct(
+      Crime_in_Zimbabwe$timestamp, origin="1970-01-01"), format = "%H:%M:%S"),
     # day of the week
-    dow = weekdays(as.Date(Crime_in_Zimababwe$event_date), abbreviate = T),
+    dow = weekdays(as.Date(Crime_in_Zimbabwe$event_date), abbreviate = T),
     #Month of the Year
-    month = months(as.Date(Crime_in_Zimababwe$event_date), abbreviate = TRUE)
+    month = months(as.Date(Crime_in_Zimbabwe$event_date), abbreviate = TRUE)
   )
 
-# Plotly plots
-#Visualisation:
-# Location Crime Count:
-Location <- data.frame(table(Crime_in_Zimababwe$location))
+# __________________ Visualization
+
+# 1. Location Crime Count:
+Location <- data.frame(table(Crime_in_Zimbabwe$location))
 
 # Change the names of locations:
 names(Location) <- c('loc', 'Count')
@@ -54,63 +80,79 @@ names(Location) <- c('loc', 'Count')
 # Top 10 locations of crime activity:
 Location = head(Location[order(Location$Count, decreasing = TRUE),], 10)
 
-Location$loc <- factor(Location$loc, levels = unique(Location$loc)[order(Location$Count, decreasing = TRUE)])
+Location$loc <- factor(Location$loc,
+                       levels = unique(Location$loc)[order(Location$Count,
+                                                           decreasing = TRUE)])
+
 plot_ly(Location, x = ~loc, y = ~Count, type = "bar",
         name = "Location",
-        text = ~Count, textposition = 'auto',
-        marker = list(color = c("#2c1429") ))%>%
+        text = ~Count, textposition = 'outside',
+        marker = list(color = c("#112f37") ))%>%
   layout(title = "Security Incidents Rates by Location",
+         plot_bgcolor='#e8d0b0',
+         paper_bgcolor='#e8d0b0',
          xaxis = list(title = "Location",
                       zeroline = FALSE),
          yaxis = list(title = "Count",
                       zeroline = FALSE))
 
-# Admin 1 security rates
-Admin1 <- data.frame(table(Crime_in_Zimababwe$admin1))
-names(Admin1) <- c('Admin', 'Count')
 
-Admin1$perc <- Admin1$Count / sum(Admin1$Count)*100
+# 2. Security rate in "admin1" (per province)
+admin1 <- data.frame(table(Crime_in_Zimbabwe$admin1))
+names(admin1) <- c('Admin', 'Count')
 
-Admin1 %>% plot_ly(x = ~Count, y = ~reorder(Admin, Count), name = 'Crime Zones',
-                   type = 'bar', orientation = 'h',
-                   marker = list(color = "#2c1429", width = 1)) %>% 
-  layout(yaxis = list(showgrid = FALSE, showline = FALSE, showticklabels = TRUE, domain= c(0, 0.85)),
-         xaxis = list(zeroline = FALSE, showline = FALSE, showticklabels = TRUE, showgrid = TRUE)) %>%
-  layout(xaxis = list(title = "",
-                      zeroline = FALSE),
-         yaxis = list(title = "",
-                      zeroline = FALSE)) %>%
-  add_annotations(xref = 'x1', yref = 'Admin',
-                  x = ~Count * 2.1 + 3,  y = ~Admin,
-                  text = paste(round(Admin1$perc, 2), '%'),
-                  font = list(family = 'San Serif', size = 12, color = 'rgb(128,0,0)'),
-                  showarrow = FALSE)
+# % crisis rate
+admin1$perc <- admin1$Count / sum(admin1$Count)*100
 
-# Monthly Crime Rate:
+admin1 %>% plot_ly(x = ~Count, y = ~reorder(Admin, Count),  type = 'bar',
+                   orientation = 'h', name = 'Crime Zones',
+                   #text = paste(round(admin1$perc, 2), '%'),textposition = 'outside',
+                   marker = list(color = "#112f37", width = 1)) %>% 
+  layout(plot_bgcolor='#e8d0b0',
+         paper_bgcolor='#e8d0b0',
+         yaxis = list(showgrid = FALSE,showline = FALSE, showticklabels = TRUE,
+                      domain= c(0, 0.85), title = "", zeroline = FALSE),
+         xaxis = list(zeroline = FALSE, showline = FALSE, showticklabels = TRUE,
+                      showgrid = TRUE, title = "", zeroline = FALSE))
+
+
+# 3. Monthly crime rate:
 # Subset data for the crime categories:
-coi <- Crime_in_Zimababwe[Crime_in_Zimababwe$sub_event_type %in%
-                            c('Abduction/forced disappearance', 'Mob violence', 'Looting/property destruction',
+coi <- Crime_in_Zimbabwe[Crime_in_Zimbabwe$sub_event_type %in%
+                            c('Abduction/forced disappearance', 'Mob violence',
+                              'Looting/property destruction',
                               'Peaceful protest', 'Violent demonstration'), ]
 
 # Subset data foror the first five months:
 coi <- coi[coi$month %in% c('Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'), ]
 
 security_by_crime <- tabyl(coi, month, sub_event_type)
-names(security_by_crime) <- c('month', 'abduction', 'looting', 'mob', 'protest', 'demonstration')
+names(security_by_crime) <- c('month', 'abduction',
+                              'looting', 'mob',
+                              'protest', 'demonstration')
 
 # Define percentages of rows
 percentages <- round(security_by_crime[,-1]/rowSums(security_by_crime[,-1]), 3) *100
 
+month_func <- c('Jun', 'May', 'Apr', 'Mar', 'Feb', 'Jan')
 # plot
 fig <- plot_ly(security_by_crime, x = ~abduction,
-               y = ~factor(month, levels =c('Jun', 'May', 'Apr', 'Mar', 'Feb', 'Jan')), type = 'bar', orientation = 'h', name="Abduction",
-               marker = list(color = '#a68196',
-                             line = list(color = 'rgb(248, 248, 249)', width = 1))) %>% 
-  add_trace(x = ~looting, marker = list(color = '#4a3340'), name="Property destruction") %>% 
-  add_trace(x = ~mob, marker = list(color = '#7e7e7f'), name="Mob violence")  %>% 
-  add_trace(x = ~protest, marker = list(color = '#7e6070'), name="Peaceful protest") %>%
-  add_trace(x = ~demonstration, marker = list(color = '#535252'), name="Violent demonstration") %>%
-  layout(xaxis = list(title = "",
+               y = ~factor(month, levels = month_func), type = 'bar',
+               orientation = 'h', name="Abduction",
+               marker = list(color = '#25110f',
+                             line = list(color = 'rgb(248, 248, 249)',
+                                         width = 1))) %>% 
+  add_trace(x = ~looting, marker = list(color = '#69340a'),
+            name="Property destruction") %>% 
+  add_trace(x = ~mob, marker = list(color = '#9e4b13'),
+            name="Mob violence")  %>% 
+  add_trace(x = ~protest, marker = list(color = '#ffbb7a'),
+            name="Peaceful protest") %>%
+  add_trace(x = ~demonstration, marker = list(color = '#cfcfcf'),
+            name="Violent demonstration") %>%
+  layout(barmode = 'stack',
+         paper_bgcolor = 'rgb(248, 248, 255)', plot_bgcolor = 'rgb(248, 248, 255)',
+         xaxis = list(title = "",
                       showgrid = FALSE,
                       showline = FALSE,
                       showticklabels = FALSE,
@@ -121,15 +163,12 @@ fig <- plot_ly(security_by_crime, x = ~abduction,
                       showline = FALSE,
                       showticklabels = FALSE,
                       zeroline = FALSE),
-         barmode = 'stack',
-         paper_bgcolor = 'rgb(248, 248, 255)', plot_bgcolor = 'rgb(248, 248, 255)',
          margin = list(l = 120, r = 10, t = 140, b = 80),
          showlegend = TRUE) %>%
   add_annotations(xref = 'paper', yref = 'month', x = 0.14, y = ~month,
                   xanchor = 'right',
                   text = ~month,
-                  font = list(family = 'San Serif', size = 12,
-                              color = 'rgb(67, 67, 67)'),
+                  font = list(family = 'Calibri'),
                   showarrow = FALSE, align = 'right') 
 
 fig <- fig %>% add_annotations(xref = 'x', yref = 'month',
@@ -139,43 +178,52 @@ fig <- fig %>% add_annotations(xref = 'x', yref = 'month',
                                            color = 'rgb(248, 248, 255)'),
                                showarrow = FALSE) %>%
   add_annotations(xref = 'x', yref = 'month',
-                  x = security_by_crime$abduction + security_by_crime$looting / 2, y = ~month,
+                  x = security_by_crime$abduction + 
+                    security_by_crime$looting / 2,
+                  y = ~month,
                   text = paste(percentages[,"looting"]),
                   font = list(family = 'San Serif', size = 12,
                               color = 'rgb(248, 248, 255)'),
                   showarrow = FALSE) %>%
   add_annotations(xref = 'x', yref = 'month',
-                  x = security_by_crime$abduction  + security_by_crime$looting +security_by_crime$mob / 2, y = ~month,
+                  x = security_by_crime$abduction  + security_by_crime$looting +
+                    security_by_crime$mob / 2,
+                  y = ~month,
                   text = paste(percentages[,"mob"]),
                   font = list(family = 'San Serif', size = 12,
                               color = 'rgb(248, 248, 255)'),
                   showarrow = FALSE) %>%
   add_annotations(xref = 'x', yref = 'month',
-                  x = security_by_crime$abduction + security_by_crime$looting +security_by_crime$mob +
+                  x = security_by_crime$abduction + security_by_crime$looting +
+                    security_by_crime$mob +
                     security_by_crime$protest/ 2, y = ~month,
                   text = paste(percentages[,"protest"]),
-                  font = list(family = 'San Serif', size = 12,
-                              color = 'rgb(248, 248, 255)'),
+                  font = list(family = 'Calibri', size = 12,
+                              color = '#1c150f'),
                   showarrow = FALSE) %>%
   add_annotations(xref = 'x', yref = 'month',
-                  x = security_by_crime$abduction + security_by_crime$looting +security_by_crime$mob +
-                    security_by_crime$protest + security_by_crime$demonstration  / 2, y = ~month,
+                  x = security_by_crime$abduction + security_by_crime$looting +
+                    security_by_crime$mob +
+                    security_by_crime$protest + security_by_crime$demonstration  / 2,
+                  y = ~month,
                   text = paste(percentages[,"demonstration"]),
-                  font = list(family = 'San Serif', size = 12,
-                              color = 'rgb(248, 248, 255)'),
+                  font = list(family = 'Calibri', size = 12,
+                              color = '#1c150f'),
                   showarrow = FALSE) %>%
   layout(legend = list(orientation = "h",   # show entries horizontally
                        xanchor = "center",  # use center of legend as anchor
                        x = 0.5))
 fig
 
-# Pie for sub_event_type
+# 4. Pie for sub_event_type
 # Color
-color <- c('#a68196', '#4a3340', '#7e7e7f', '#7e6070', '#535252', '#dbdada', '#a4a4a5')
+color <- c("#ca4f01", "#ffbb76","#5f9ed1","#093647", "#6f6863")
 
-Admin_table <- Crime_in_Zimababwe[Crime_in_Zimababwe$sub_event_type %in%
-                                    c("Mob violence", "Peaceful protest", "Looting/property destruction",
+Admin_table <- Crime_in_Zimbabwe[Crime_in_Zimbabwe$sub_event_type %in%
+                                    c("Mob violence", "Peaceful protest",
+                                      "Looting/property destruction",
                                       "Violent demonstration","Armed clash"), ]
+
 Admin_table <- data.frame(table(Admin_table$sub_event_type))
 
 plot_ly(Admin_table, labels = ~Var1, values = ~Freq, type = 'pie',
@@ -189,70 +237,83 @@ plot_ly(Admin_table, labels = ~Var1, values = ~Freq, type = 'pie',
         #The 'pull' attribute can also be used to create space between the sectors
         showlegend = FALSE)
 
-# Line Graph
-yearly_trend <- tabyl(Crime_in_Zimababwe, month, year)
+# 5. Line Graph
+yearly_trend <- tabyl(Crime_in_Zimbabwe, month, year)
 
 # Order Month
 yearly_trend <- yearly_trend[order(match(yearly_trend$month, month.abb)), ]
+yearly_trend$f1 <- yearly_trend$`2005` + yearly_trend$`2006` +
+                   yearly_trend$`2007` + yearly_trend$`2008` +
+                   yearly_trend$`2009`
+
+yearly_trend$f2 <- yearly_trend$`2010` + yearly_trend$`2011` +
+                   yearly_trend$`2012` + yearly_trend$`2013` +
+                   yearly_trend$`2014`
+
+yearly_trend$f3 <- yearly_trend$`2015` + yearly_trend$`2016` +
+                   yearly_trend$`2017` + yearly_trend$`2018` +
+                   yearly_trend$`2019`
 
 yearly_trend$month <- factor(yearly_trend$month, levels = yearly_trend[["month"]])
 
-plot_ly(x = yearly_trend$month, y = yearly_trend$`2021`, type = 'scatter',
-        text = ~yearly_trend$`2021`,
-        mode = 'lines+markers', line = list(color = 'rgb(205, 12, 24)', width = 4),
-        name = "2021") %>%
-  add_trace(y = yearly_trend$`2020`, name = '2020', line = list(color = 'rgb(22, 96, 167)', width = 4)) %>%
-  add_trace(y = yearly_trend$`2019`, name = '2019', line = list(color = 'purple', width = 4))
+plot_ly(x = yearly_trend$month, y = yearly_trend$f1, type = 'scatter',
+        text = ~yearly_trend$f1,
+        mode = 'lines', line = list(color = '#cf5102', width = 4),
+        name = "f1") %>%
+  add_trace(y = yearly_trend$f2, name = "f2", line = list(color = '#cececf', width = 4)) %>%
+  add_trace(y = yearly_trend$f3, name = "f3", line = list(color = '#093646', width = 4))
 
-# Security event distribution per year
-four_years <- Crime_in_Zimababwe[Crime_in_Zimababwe$year %in%
-                                                      c(2016, 2017, 2018, 2019, 2020), ]
+# 6. Security event distribution per year
+four_years <- Crime_in_Zimbabwe[Crime_in_Zimbabwe$year %in%
+                                                      c(2018, 2019, 2020), ]
 event_per_year <- tabyl(four_years, year, event_type)
 
 event_per_year %>% plot_ly() %>%
   add_trace(x = ~year, y = ~Battles, type = 'bar',
             text = ~Battles, textposition = 'auto',
-            marker = list(color = '#a68196',
-                          line = list(color = 'rgb(8,48,107)', width = 1.5)), name = "Battles") %>% 
+            marker = list(color = '#5f9ed0'), name = "Battles") %>% 
   add_trace(x = ~year, y = ~Protests, type = 'bar',
             text = ~Protests, textposition = 'auto',
-            marker = list(color = '#4a3340',
-                          line = list(color = 'rgb(8,48,107)', width = 1.5)), name = "Protests") %>%
+            marker = list(color = '#feba7a'), name = "Protests") %>%
   add_trace(x = ~year, y = ~Riots, type = 'bar',
             text = ~Riots, textposition = 'auto',
-            marker = list(color = '#7e7e7f',
-                          line = list(color = 'rgb(8,48,107)', width = 1.5)), name = "Riots") %>%
+            marker = list(color = '#9e4a15'), name = "Riots") %>%
   add_trace(x = ~year, y = ~`Explosions/Remote violence`, type = 'bar',
             text = ~`Explosions/Remote violence`, textposition = 'auto',
-            marker = list(color = '#7e6070',
-                          line = list(color = 'rgb(8,48,107)', width = 1.5)), name = "Explosions") %>%
+            marker = list(color = '#e6ebc4'), name = "Explosions") %>%
   add_trace(x = ~year, y = ~`Violence against civilians`, type = 'bar',
             text = ~`Violence against civilians`, textposition = 'auto',
-            marker = list(color = '#535252',
-                          line = list(color = 'rgb(8,48,107)', width = 1.5)), name = "Violence") %>%
+            marker = list(color = '#073542'), name = "Violence") %>%
  layout(title = "Yearly Event-Type Trend",
              barmode = 'group',
              xaxis = list(title = ""),
              yaxis = list(title = ""))
 
-# Security Rate against mens population:
-# Lets us take a look at 2018 data. Seeming it registered high number of Security events.
-Crime_in_Zimababwe_2018 <- Crime_in_Zimababwe[which(Crime_in_Zimababwe$year == 2018),]
-Crime_per_Admin1 <- data.frame(table(Crime_in_Zimababwe_2018$admin1))
-names(Crime_per_Admin1) <- c("Province", "Crime_Count")
+# 7. Security Rate against men's population:
+# Lets us take a look at 2018 data.
+# Seeming it registered high number of Security events.
+Crime_in_Zimbabwe_2018 <- Crime_in_Zimbabwe[which(Crime_in_Zimbabwe$year == 2018),]
+Crime_per_admin1 <- data.frame(table(Crime_in_Zimbabwe_2018$admin1))
+names(Crime_per_admin1) <- c("Province", "Crime_Count")
 
 # Zimbabwe population data as at 2017:
 path = "/home/imusebe/code/R/Spatial Data Analysis and Visualisation/ShapeFiles/zimbabwe_pop_data.csv"
 zim_pop_data <- read.csv(path, header = TRUE, na.strings = "")
 
 # Join the two in regard to Province
-Crime_per_Admin1 <- merge(Crime_per_Admin1, zim_pop_data, by="Province")
-Crime_per_Admin1 <- Crime_per_Admin1[order(Crime_per_Admin1$Province),]
+Crime_per_admin1 <- merge(Crime_per_admin1, zim_pop_data, by="Province")
+Crime_per_admin1 <- Crime_per_admin1[order(Crime_per_admin1$Province),]
 slope <- 2.666051223553066e-05
-Crime_per_Admin1$size <- sqrt(Crime_per_Admin1$Pop * slope)*8
-colors <- c('#4AC6B7', '#1972A4', '#965F8A', '#FF7070', '#C61951')
-plot_ly(Crime_per_Admin1, x = ~Crime_Count, y = ~Male, color = ~Province, size = ~size*100, colors = colors,
-        type = 'scatter', mode = 'markers', sizes = c(min(Crime_per_Admin1$size), max(Crime_per_Admin1$size)),
+
+# Percentage count per province:
+Crime_per_admin1$Crime_Count <- Crime_per_admin1$Crime_Count / rowSums(Crime_per_admin1$Crime_Count) * 100
+Crime_per_admin1$size <- sqrt(Crime_per_admin1$Pop * slope)*8
+colors <- c("#ca4f01", "#ffbb76","#5f9ed1","#093647", "#6f6863")
+
+plot_ly(Crime_per_admin1, x = ~Crime_Count, y = ~Male,
+        color = ~Province, size = ~size*100, colors = colors,
+        type = 'scatter', mode = 'markers',
+        sizes = c(min(Crime_per_admin1$size), max(Crime_per_admin1$size)),
         marker = list(symbol = 'circle', sizemode = 'diameter',
                       line = list(width = 2, color = '#FFFFFF')),
         text = ~paste('Province:', Province, '<br>Male Pop:', Male, '<br>GDP:', Crime_Count,
@@ -275,21 +336,9 @@ plot_ly(Crime_per_Admin1, x = ~Crime_Count, y = ~Male, color = ~Province, size =
 #_______________
 # Part 2:
 # Spatial Analysis:
+setwd("~/Zimbabwe ShapeFiles")
 
-# Download packages:
-install.packages(c("sf", "leaflet", "leaflet.providers", "leaflet.opacity", "cartography"))
-
-#load the packages:
-library(sf)
-library(leaflet) 
-library(leaflet.providers)
-library(leaflet.opacity)
-library(cartography)
-library(RColorBrewer)
-library(tmap)
-library(tmaptools)
-
-# ShapeFile installed
+# import shape files
 # Admin boundaries:
 zim <- st_read("zwe_admbnda_adm0_zimstat_ocha_20180911.shp",stringsAsFactors = FALSE) # country boundaries
 level_1 <- st_read("zwe_admbnda_adm1_zimstat_ocha_20180911.shp", stringsAsFactors = FALSE) # provincial boundaries
@@ -397,27 +446,28 @@ leaflet() %>%
 # ___________The security per Province_______________________________________________
 # The admin1 is  the province.
 # Admin 1 is the count table.
-# Plot the coloured map of the crimes with crimes rates on the scale:
-crime <- log10(Admin1$Count)
+# Plot the colored map of the crimes with crimes rates on the scale:
+crime <- log10(admin1$Count)
 
-pal <- colorNumeric(c("#a4a4a5", "#7e7e7f", "#a68097", "#7e6171", "#4a3340"), NULL)
+color <- c("#ca4f01", "#ffbb76", "#6f6863", "#5f9ed1","#093647")
+pal <- colorNumeric(c("#ca4f01", "#ffbb76", "#6f6863", "#5f9ed1","#093647"), NULL)
 leaflet(level_1) %>% addTiles() %>%
   addPolygons(stroke = FALSE, smoothFactor = 0.3, fillOpacity = 1,
-              fillColor = ~pal(log10(Admin1$Count)),
-              label = ~paste0(Admin1$Admin, ": ", formatC(Admin1$Count, big.mark = ","))) %>%
-  addLegend(pal = pal, values = ~crime, opacity = 1.0,
+              fillColor = ~pal(log10(admin1$Count)),
+              label = ~paste0(admin1$Admin, ": ", formatC(admin1$Count, big.mark = ","))) %>%
+  addLegend(title = "Crime Rate", pal = pal, values = ~crime, opacity = 1.0,
             labFormat = labelFormat(transform = function(x) round(10^x)))
 
 # Using the cartography package
-level_1$security_count <- Admin1$Count
+level_1$security_count <- admin1$Count
 
 # Plot Provinces
-plot(st_geometry(level_1), col = "grey80", border = "grey")
+plot(st_geometry(level_1), col = "#093647", border = "grey")
 propSymbolsLayer(
   x = level_1, 
   var = "security_count", 
   inches = 0.25, 
-  col = "brown4",
+  col = "#ca4f01", 
   legend.pos = "topright",  
   legend.title.txt = "InSecurity Rate"
 )
@@ -432,7 +482,7 @@ north(pos = "topleft")
 # ___________The security per Districts_______________________________________________
 
 # Crime by admin 2:
-Admin2 <- data.frame(table(Crime_in_Zimababwe$admin2))
+Admin2 <- data.frame(table(Crime_in_Zimbabwe$admin2))
 names(Admin2) <- c('District', 'Count')
 
 # find the distict shape file of the districts reported with incidents:
@@ -467,23 +517,24 @@ north(pos = "topright")
 # ___________The security Against Population____________________________________
 # Population against Security incidents:
 # Lets us take a look at 2018 data. Seeming it registered high number of Security events.
-Crime_in_Zimababwe_2018 <- Crime_in_Zimababwe[which(Crime_in_Zimababwe$year ==2018),]
-Crime_per_Admin1 <- data.frame(table(Crime_in_Zimababwe_2018$admin1))
-names(Crime_per_Admin1) <- c("Province", "Crime_Count")
+Crime_in_Zimbabwe_2018 <- Crime_in_Zimbabwe[which(Crime_in_Zimbabwe$year ==2018),]
+Crime_per_admin1 <- data.frame(table(Crime_in_Zimbabwe_2018$admin1))
+names(Crime_per_admin1) <- c("Province", "Crime_Count")
 
 # Zimbabwe population data as at 2017:
 path = "/home/imusebe/code/R/Spatial Data Analysis and Visualisation/ShapeFiles/zimbabwe_pop_data.csv"
 zim_pop_data <- read.csv(path, header = TRUE, na.strings = "")
 
 # Join the two in regard to Province
-Crime_per_Admin1 <- merge(Crime_per_Admin1, zim_pop_data, by="Province")
-Crime_per_Admin1 <- Crime_per_Admin1[order(Crime_per_Admin1$Province),]
+Crime_per_admin1 <- merge(Crime_per_admin1, zim_pop_data, by="Province")
+Crime_per_admin1 <- Crime_per_admin1[order(Crime_per_admin1$Province),]
 
-level_1$Pop <- Crime_per_Admin1$Pop
-level_1$security_count <- Crime_per_Admin1$Crime_Count
+level_1$Pop <- Crime_per_admin1$Pop
+level_1$security_count <- Crime_per_admin1$Crime_Count
 
 plot(st_geometry(level_1), col="darkseagreen3", border="darkseagreen4",  
      bg = "lightblue1", lwd = 0.5)
+
 # Plot symbols with choropleth coloration
 propSymbolsChoroLayer(
   x = level_1, 
@@ -546,7 +597,7 @@ leaflet() %>%
 
 
 # Crime in the Midlands districts
-mid_security <- Crime_in_Zimababwe[Crime_in_Zimababwe$admin2 %in% c("Chirumhanzu", "Gokwe North", "Gokwe South", "Gweru",
+mid_security <- Crime_in_Zimbabwe[Crime_in_Zimbabwe$admin2 %in% c("Chirumhanzu", "Gokwe North", "Gokwe South", "Gweru",
                                                                     "Kwekwe", "Mberengwa", "Shurugwi", "Zvishavane"), ]
 
 # Aggregate data by the districts:
@@ -583,10 +634,10 @@ states = st_read("USA_2_GADM_fips.shp")
 mapview(level_1, zcol = "ADM1_EN")
 
 # View incidents distribution:
-Crime_in_Zimababwe$longitude <- as.numeric(Crime_in_Zimababwe$longitude)
-Crime_in_Zimababwe$latitude <- as.numeric(Crime_in_Zimababwe$latitude)
+Crime_in_Zimbabwe$longitude <- as.numeric(Crime_in_Zimbabwe$longitude)
+Crime_in_Zimbabwe$latitude <- as.numeric(Crime_in_Zimbabwe$latitude)
 
-data.Set2 <- data.table(Crime_in_Zimababwe)
+data.Set2 <- data.table(Crime_in_Zimbabwe)
 
 coordinates(data.Set2) <- c("longitude", "latitude")
 proj4string(data.Set2) <- CRS("+proj=longlat +datum=WGS84")
@@ -596,7 +647,7 @@ mapview(data.Set2)
 # To categorically plot the event_type:
 # change the Crime_in Zimbabwe into sf data.frame
 projcrs <- "+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0"
-Crime_in_Zimababwe_sf <- st_as_sf(x = Crime_in_Zimababwe,                         
+Crime_in_Zimbabwe_sf <- st_as_sf(x = Crime_in_Zimbabwe,                         
                                   coords = c("longitude", "latitude"),
                                   crs = projcrs)
 
