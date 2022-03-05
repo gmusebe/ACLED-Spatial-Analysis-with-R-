@@ -13,11 +13,12 @@ ACLED collects real-time data on the locations, dates, actors, fatalities, and t
 
 * [Installations](https://github.com/Gmusebe/ACLED-Spatial-Analysis-with-R-#installations)
 * [Setting Environment](https://github.com/Gmusebe/ACLED-Spatial-Analysis-with-R-#setting-environment)
-* [Data]()
+* [Data](https://github.com/Gmusebe/ACLED-Spatial-Analysis-with-R-#data)
 * [Cleaning & Feature Engineering](https://github.com/Gmusebe/ACLED-Spatial-Analysis-with-R-#cleaning--feature-engineering)
 * [Visualization](https://github.com/Gmusebe/ACLED-Spatial-Analysis-with-R-#visualization)
   - [Part 1: Summary Data](https://github.com/Gmusebe/ACLED-Spatial-Analysis-with-R-#part-1-summary-data)
   - [Part 2: Spatial Analysis](https://github.com/Gmusebe/ACLED-Spatial-Analysis-with-R-#part-2-spatial-analysis)
+
 
 ## Installations
 Install the latest release version of required packages from [CRAN](https://cran.r-project.org/web/packages/available_packages_by_name.html) with :
@@ -184,8 +185,8 @@ Example:
 By ``leaflet`` package(left image) & ``cartography`` package:
 
   <p align="center">
-    <img src="https://github.com/Gmusebe/ACLED-Spatial-Analysis-with-R-/blob/master/spatial_visuals/provincial_crime_rate.jpg?raw=true" width="450" />
-    <img src="https://github.com/Gmusebe/ACLED-Spatial-Analysis-with-R-/blob/master/spatial_visuals/provicial_crime_rate_1.png?raw=true" width="430" /> 
+    <img src="https://github.com/Gmusebe/ACLED-Spatial-Analysis-with-R-/blob/master/spatial_visuals/provincial_crime_rate.jpg?raw=true" width="400" />
+    <img src="https://github.com/Gmusebe/ACLED-Spatial-Analysis-with-R-/blob/master/spatial_visuals/provicial_crime_rate_1.png?raw=true" width="380" /> 
   </p>
 
 ## Copyright and license
